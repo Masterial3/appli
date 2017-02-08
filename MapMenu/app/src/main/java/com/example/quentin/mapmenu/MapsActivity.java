@@ -11,6 +11,7 @@ import android.Manifest;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
@@ -45,15 +46,41 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.regex.Pattern;
 
+import static android.R.id.list;
+
 public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
 
     private GoogleMap mMap;
     public TextView textView;
     ArrayList<ArrayList<String>> table;
-    ArrayList<Station> listStation = new ArrayList<Station>();
     String result;
     boolean finThread = false;
+    ArrayList<Station> listStation = new ArrayList<Station>();
+    Thread thread;
+    int bidule = 0;
 
+    LatLng myLat;
+
+    private Handler myHandler;
+    private Runnable myRunnable = new Runnable() {
+        @Override
+        public void run() {
+            mMap.clear();
+            onMapReady(mMap);
+            myHandler.postDelayed(this, 10000);
+
+        }
+    };
+
+
+
+
+
+
+
+
+
+    //####################### Localisation ######################"
     private static final int FINE_LOCATION_PERMISSION_REQUEST = 1;
     private static final int CONNECTION_RESOLUTION_REQUEST = 2;
     private GoogleApiClient mGoogleApiClient;
@@ -67,6 +94,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         setContentView(R.layout.activity_maps);
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         setTitle("Coucou");
+
+        myHandler = new Handler();
+        myHandler.postDelayed(myRunnable, 10000);
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
@@ -112,11 +142,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
 
 
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.my_menu, menu);
 
-        return true;
-    }
 
     public void onConnectionSuspended(int i)
     {
@@ -164,8 +190,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         else
         {
             mLastLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
-            LatLng myLat = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
-            mMap.moveCamera(CameraUpdateFactory.newLatLng(myLat));
+            myLat = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
+            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(myLat, 14));
         }
     }
 
@@ -185,12 +211,21 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
 
 
-    //################## MAP ####################"
-    @Override
-    public void onMapReady(GoogleMap googleMap) {
-        mMap = googleMap;
+//################### Menu options ######################
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.my_menu, menu);
 
-        Thread thread = new Thread() {
+        return true;
+    }
+
+
+
+
+    //############### récupération données ######################
+
+    public void recupData()
+    {
+        thread = new Thread() {
             @Override
             public void run() {
 
@@ -347,12 +382,30 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         };
         thread.start();
 
+    }
+
+
+    //################## update ###################
+
+
+
+
+    //################## MAP ####################
+    @Override
+    public void onMapReady(GoogleMap googleMap) {
+        mMap = googleMap;
+
+
+        recupData();
+
+
 
         //attent la fin du thread pour continuer
         while(finThread == false)
         {
 
         }
+        finThread = false;
 
 
 
@@ -365,16 +418,15 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         {
 
         }
-        LatLng paris = new LatLng(48.866667, 2.333333);
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(paris, 14));
+
 
 
         // boucle : ajout des marker à la map
         for(int i = 0; i<listStation.size(); i++)
         {
+
             mMap.addMarker(new MarkerOptions().position(new LatLng(listStation.get(i).getLat(), listStation.get(i).getLng())));
         }
-
 
         // Bulle custom
 
@@ -447,150 +499,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 textView = (TextView) findViewById(R.id.text1);
 
 
-                Thread thread = new Thread() {
-                    @Override
-                    public void run() {
-
-
-                                if(isNetworkAvailable()==true) {
-                                    try {
-                                        URL url = new URL("https://api.jcdecaux.com/vls/v1/stations?apiKey=fb6216c7927ccf5e52101074754ca000d42c2dd2&contract=Paris");
-                                        HttpURLConnection con = (HttpURLConnection) url.openConnection();
-                                        readStream(con.getInputStream());
-
-                                        table = decoupe();
-                                        print(table);
-
-                                        Log.i("Etat","Good");
-                                    } catch (Exception e) {
-                                        e.printStackTrace();
-                                        Log.i("Etat","Exception Traitement");
-                                    }
-                                }else{
-                                    Log.i("Etat","Pas de reseau");
-                                }
-
-
-                            }
-
-                            private void readStream(InputStream in) {
-                                BufferedReader reader = null;
-                                try {
-                                    reader = new BufferedReader(new InputStreamReader(in));
-                                    String line = "";
-                                    result = "";
-                                    while ((line = reader.readLine()) != null) {
-                                        //System.out.println(line);
-                                        result = result + line;
-                                    }
-                                } catch (IOException e) {
-                                    e.printStackTrace();
-                                } finally {
-                                    if (reader != null) {
-                                        try {
-                                            reader.close();
-                                        } catch (IOException e) {
-                                            e.printStackTrace();
-                                        }
-                                    }
-                                }
-                            }
-
-                            public boolean isNetworkAvailable() {
-                                ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-                                NetworkInfo networkInfo = cm.getActiveNetworkInfo();
-                                // si aucun réseau n'est disponible, networkInfo sera null
-                                // sinon, vérifier si nous sommes connectés
-                                if (networkInfo != null && networkInfo.isConnected()) {
-                                    return true;
-                                }
-                                return false;
-                            }
-
-                            public ArrayList<ArrayList<String>> decoupe() throws Exception{
-
-                                //decoupage de la chaine
-                                String liste[] = result.split(Pattern.quote("},"));
-
-
-                                //regroupement des informations d'une meme station en une chaine
-                                ArrayList<String> liste2 = new ArrayList<String>();
-                                int increment = 0;
-                                while(increment<liste.length){
-                                    liste2.add(liste[increment].substring(1)+"},"+liste[increment+1]);
-                                    increment += 2;
-                                }
-
-                                //suppression des derniers caractères génant
-                                liste2.set(0, liste2.get(0).substring(1));
-                                liste2.set(liste2.size()-1, liste2.get(liste2.size()-1).substring(0,liste2.get(liste2.size()-1).length()-2));
-
-                                //decoupage des sous-chaines
-                                ArrayList<ArrayList<String>> listeDeListe = new ArrayList<ArrayList<String>>();
-                                for(int i=0;i<liste2.size();i++){
-                                    String[] tempo = liste2.get(i).split(",\"");
-                                    listeDeListe.add(new ArrayList<String>());
-                                    for(int j=0;j<tempo.length;j++){
-                                        listeDeListe.get(listeDeListe.size()-1).add(tempo[j]);
-                                    }
-                                    //System.out.println(tempo[0]);
-                                }
-
-                                //extraction des informations
-                                for(int i=0;i<listeDeListe.size();i++){
-                                    for(int j=0;j<listeDeListe.get(i).size();j++){
-                                        String[] listTempo = listeDeListe.get(i).get(j).split(":");
-                                        listeDeListe.get(i).set(j, listTempo[listTempo.length-1]);
-                                    }
-                                }
-
-                                //suppression parasite " et }
-                                for(int i=0;i<listeDeListe.size();i++){
-                                    for(int j=0;j<listeDeListe.get(i).size();j++){
-                                        String tempo = listeDeListe.get(i).get(j);
-                                        if(tempo.charAt(0)=='"')
-                                            listeDeListe.get(i).set(j, tempo.substring(1,tempo.length()));
-                                        String tempo2 = listeDeListe.get(i).get(j);
-                                        if(tempo2.charAt(tempo2.length()-1)=='}' || tempo2.charAt(tempo2.length()-1)=='"')
-                                            listeDeListe.get(i).set(j, tempo2.substring(0,tempo2.length()-1));
-
-                                    }
-                                }
-
-                                return listeDeListe;
-                            }
-
-                            public void print(ArrayList<ArrayList<String>> liste){
-
-                                for(int i=0;i<liste.size();i++){
-
-                                    System.out.println("Numero: "+liste.get(i).get(0));
-                                    System.out.println("Nom: "+liste.get(i).get(1));
-                                    System.out.println("Adresse: "+liste.get(i).get(2));
-
-                                    System.out.println("Position:");
-                                    System.out.println("\tlatitude: "+liste.get(i).get(3));
-                                    System.out.println("\tlongitude: "+liste.get(i).get(4));
-
-                                    System.out.println("banking: "+liste.get(i).get(5));
-                                    System.out.println("Bonus: "+liste.get(i).get(6));
-                                    //if(liste.get(i).get(6)=="false")
-                                    //	compteur++;
-                                    System.out.println("Etat: "+liste.get(i).get(7));
-                                    System.out.println("Ville: "+liste.get(i).get(8));
-
-                                    System.out.println("Capacite totale: "+liste.get(i).get(9));
-                                    System.out.println("Borne disponible: "+liste.get(i).get(10));
-                                    System.out.println("Velo disponible: "+liste.get(i).get(11));
-
-                                    System.out.println("Derniere maj: "+liste.get(i).get(12));
-
-                                    System.out.println("--------------------------------------------------");
-                                }
-
-                    }
-                };
-                thread.start();
+                recupData();
 
                 return true;
             case R.id.action_add:
