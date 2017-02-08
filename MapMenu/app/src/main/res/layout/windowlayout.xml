@@ -29,16 +29,13 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
 
-    <Button
-        android:id="@+id/button_favoris"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+
 
     <Button
         android:id="@+id/button_favoris"
         android:layout_width="49dp"
         android:layout_height="49dp"
-        android:background="@mipmap/ic_launcher"
+        android:background="@mipmap/favoris"
         android:width="10dp"
         android:height="10dp"
         android:elevation="0dp" />

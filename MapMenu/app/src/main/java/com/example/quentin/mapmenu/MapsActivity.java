@@ -1,10 +1,20 @@
 package com.example.quentin.mapmenu;
 
+import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentSender;
+import android.content.pm.PackageManager;
+import android.graphics.Camera;
+import android.location.Location;
+import android.Manifest;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
@@ -12,7 +22,12 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesUtil;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -30,7 +45,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.regex.Pattern;
 
-public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback {
+public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
 
     private GoogleMap mMap;
     public TextView textView;
@@ -39,25 +54,132 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     String result;
     boolean finThread = false;
 
+    private static final int FINE_LOCATION_PERMISSION_REQUEST = 1;
+    private static final int CONNECTION_RESOLUTION_REQUEST = 2;
+    private GoogleApiClient mGoogleApiClient;
+    private Location mLastLocation;
+
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
-
         setTitle("Coucou");
-
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
-
+        buildGoogleAPIClient();
     }
+
+    protected void onResume()
+    {
+        super.onResume();
+        buildGoogleAPIClient();
+    }
+
+    private void buildGoogleAPIClient()
+    {
+        if(mGoogleApiClient == null)
+        {
+            mGoogleApiClient = new GoogleApiClient.Builder(this)
+                    .addConnectionCallbacks(this)
+                    .addOnConnectionFailedListener(this)
+                    .addApi(LocationServices.API)
+                    .build();
+        }
+    }
+
+    public void onConnected(@Nullable Bundle bundle)
+    {
+        findLocation();
+    }
+
+    protected void onStart()
+    {
+        mGoogleApiClient.connect();
+        super.onStart();
+    }
+
+    protected void onStop()
+    {
+        mGoogleApiClient.disconnect();
+        super.onStop();
+    }
+
+
+
 
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.my_menu, menu);
 
         return true;
+    }
+
+    public void onConnectionSuspended(int i)
+    {
+        Toast.makeText(this, "Connections suspended", Toast.LENGTH_SHORT).show();
+    }
+
+    public void onConnectionFailed(@NonNull final ConnectionResult connectionResult)
+    {
+        if(connectionResult.hasResolution())
+        {
+            try
+            {
+                connectionResult.startResolutionForResult(this, CONNECTION_RESOLUTION_REQUEST);
+            }
+            catch(IntentSender.SendIntentException e)
+            {
+                mGoogleApiClient.connect();
+            }
+        }
+        else
+        {
+            Dialog dialog = GooglePlayServicesUtil.getErrorDialog(connectionResult.getErrorCode(), this, 1);
+            dialog.show();
+        }
+
+    }
+
+    protected void onActivityResult(int requestCode, int resultCode, Intent data)
+    {
+        super.onActivityResult(requestCode, resultCode, data);
+        if(requestCode == CONNECTION_RESOLUTION_REQUEST && resultCode == RESULT_OK)
+        {
+            mGoogleApiClient.connect();
+        }
+    }
+
+    private void findLocation()
+    {
+        if(ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED)
+        {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                    FINE_LOCATION_PERMISSION_REQUEST);
+        }
+        else
+        {
+            mLastLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
+            LatLng myLat = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
+            mMap.moveCamera(CameraUpdateFactory.newLatLng(myLat));
+        }
+    }
+
+    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults)
+    {
+        switch(requestCode)
+        {
+            case FINE_LOCATION_PERMISSION_REQUEST:{
+                if(grantResults.length>0 && grantResults[0] == PackageManager.PERMISSION_GRANTED)
+                {
+                    findLocation();
+                }
+            }
+        }
     }
 
 
@@ -233,6 +355,20 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
 
 
+
+
+        if(ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
+        {
+            mMap.setMyLocationEnabled(true);
+        }
+        else
+        {
+
+        }
+        LatLng paris = new LatLng(48.866667, 2.333333);
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(paris, 14));
+
+
         // boucle : ajout des marker à la map
         for(int i = 0; i<listStation.size(); i++)
         {
@@ -259,6 +395,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 String intnbplace = "DEFAULT";
 
                 LatLng latLng = marker.getPosition();
+
+
 
 
                 // lien marker-station par les coord
