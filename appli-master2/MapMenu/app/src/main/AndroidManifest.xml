@@ -33,12 +33,13 @@
             android:label="@string/title_activity_maps">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
+                <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
             </intent-filter>
         </activity>
 
         <activity android:name=".FavoriActivity"/>
+        <activity android:name=".OptionActivity"/>
     </application>
 
 </manifest>

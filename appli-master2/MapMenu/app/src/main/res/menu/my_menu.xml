@@ -17,4 +17,8 @@
         android:title="Favori"
         app:showAsAction="never"></item>
 
+    <item android:id="@+id/action_option"
+        android:icon="@android:drawable/ic_menu_delete"
+        android:title="Option"
+        app:showAsAction="never"></item>
 </menu>

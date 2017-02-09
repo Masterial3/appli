@@ -66,6 +66,7 @@ public class Station {
 
     public MarkerOptions getMarker(){ return marker; }
 
+    public int getNumber(){ return number;}
     public String getName(){ return name;}
     public String getAddress(){return address;}
     public int getNbvelo(){return nbvelo;}

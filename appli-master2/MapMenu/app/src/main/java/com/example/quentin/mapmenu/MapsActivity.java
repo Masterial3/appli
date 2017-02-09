@@ -1,17 +1,18 @@
 package com.example.quentin.mapmenu;
 
+import android.Manifest;
 import android.app.Dialog;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
-import android.graphics.Camera;
 import android.location.Location;
-import android.Manifest;
 import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.annotation.NonNull;
@@ -41,18 +42,19 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 import java.io.BufferedReader;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.regex.Pattern;
 
-import static android.R.id.list;
-
 public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
-
+    TextView name;
+    Intent page;
     private GoogleMap mMap;
     public TextView textView;
     ArrayList<ArrayList<String>> table;
@@ -61,6 +63,15 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     ArrayList<Station> listStation = new ArrayList<Station>();
     Thread thread;
     int bidule = 0;
+
+    FavoriActivity favoris = new FavoriActivity();
+    private int number;
+
+    final Context context = this;
+
+    double lat1 = 0.0;
+    double lon1 = 0.0;
+
 
     LatLng myLat;
 
@@ -197,8 +208,14 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             if ( !manager.isProviderEnabled( LocationManager.GPS_PROVIDER ) ) {
                 buildAlertMessageNoGps();
             }else {
-                myLat = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
+                if(mLastLocation != null) {
+                    myLat = new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude());
+
+                }
+                else
+                    myLat = new LatLng(48,48);
                 mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(myLat, 14));
+
             }
         }
     }
@@ -236,7 +253,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
 
 
-//################### Menu options ######################
+    //################### Menu options ######################
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.my_menu, menu);
 
@@ -420,10 +437,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
 
-
         recupData();
-
-
 
         //attent la fin du thread pour continuer
         while(finThread == false)
@@ -431,8 +445,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         }
         finThread = false;
-
-
 
 
         if(ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
@@ -443,7 +455,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         {
 
         }
-
 
 
         // boucle : ajout des marker à la map
@@ -463,55 +474,117 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
             @Override
             public View getInfoContents(Marker marker) {
-                // Getting view from the layout file info_window_layout
-                View v = getLayoutInflater().inflate(R.layout.windowlayout, null);
-
-                String strname = "DEFAULT";
-                String stradresse = "DEFAULT";
-                String intnbvelo = "DEFAULT";
-                String intnbplace = "DEFAULT";
-
-                LatLng latLng = marker.getPosition();
-
-
-
-
-                // lien marker-station par les coord
-                for(int i = 0 ; i < listStation.size(); i++){
-                    if(latLng.longitude == listStation.get(i).getLng() &&
-                            latLng.latitude == listStation.get(i).getLat())
-                    {
-                        strname = listStation.get(i).getName();
-                        stradresse = listStation.get(i).getAddress();
-                        intnbvelo = Integer.toString(listStation.get(i).getNbvelo());
-                        intnbplace = Integer.toString(listStation.get(i).getNbplace());
-                    }
-
-                }
-
-
-                TextView name = (TextView) v.findViewById(R.id.tv_name);
-                TextView adress = (TextView) v.findViewById(R.id.tv_adresse);
-                TextView nbvelo = (TextView) v.findViewById(R.id.tv_nbvelo);
-                TextView nbplace = (TextView) v.findViewById(R.id.tv_nbplace);
-                TextView coord = (TextView) v.findViewById(R.id.tv_coord);
-
-
-                Button f = (Button) v.findViewById(R.id.button_favoris);
-                name.setText("Nom : " + strname);
-                adress.setText("Adresse : "+ stradresse);
-                nbvelo.setText("Nombre de vélos : " + intnbvelo);
-                nbplace.setText("Nombre de places : " + intnbplace);
-                coord.setText(latLng.latitude + " | " + latLng.longitude);
-                return v;
+                dialogue(marker);
+                return null;
             }
+
+            //@Override
+
         });
     }
 
 
+    private void dialogue(Marker marker){
+        final Dialog dialog = new Dialog(context);
+        dialog.setContentView(R.layout.custom);
 
 
+        // set the custom dialog components - text, image and button
+        //TextView text = (TextView) dialog.findViewById(R.id.text);
+        //text.setText("Android custom dialog example!");
+        //ImageView image = (ImageView) dialog.findViewById(R.id.image);
+        //image.setImageResource(R.drawable.ic_launcher);
 
+        String strname = "DEFAULT";
+        String stradresse = "DEFAULT";
+        String intnbvelo = "DEFAULT";
+        String intnbplace = "DEFAULT";
+
+        LatLng latLng = marker.getPosition();
+
+
+        // lien marker-station par les coord
+        for(int i = 0 ; i < listStation.size(); i++){
+            if(latLng.longitude == listStation.get(i).getLng() &&
+                    latLng.latitude == listStation.get(i).getLat())
+            {
+                strname = listStation.get(i).getName();
+                stradresse = listStation.get(i).getAddress();
+                intnbvelo = Integer.toString(listStation.get(i).getNbvelo());
+                intnbplace = Integer.toString(listStation.get(i).getNbplace());
+            }
+
+        }
+
+        name = (TextView) dialog.findViewById(R.id.tv_name);
+        TextView adress = (TextView) dialog.findViewById(R.id.tv_adresse);
+        TextView nbvelo = (TextView) dialog.findViewById(R.id.tv_nbvelo);
+        TextView nbplace = (TextView) dialog.findViewById(R.id.tv_nbplace);
+        TextView coord = (TextView) dialog.findViewById(R.id.tv_coord);
+
+        Log.i("Dialog","Texte a venir");
+
+        dialog.setTitle(strname);
+        adress.setText("Adresse : " + stradresse);
+        nbvelo.setText(intnbvelo + " vélo");
+        nbplace.setText(intnbplace + " places");
+
+        lat1 = latLng.latitude;
+        lon1 = latLng.longitude;
+
+
+        Log.i("Dialog","Texte fait");
+
+        Button fav = (Button) dialog.findViewById(R.id.button_favoris);
+        Button dialogButton = (Button) dialog.findViewById(R.id.dialogButtonOK);
+
+
+        fav.setOnClickListener(new View.OnClickListener() {
+            TextView name = (TextView) dialog.findViewById(R.id.tv_name);
+
+            String n= name.getText().toString();
+           // String n = findViewById(R.id.tv_name).toString();
+            @Override
+            public void onClick(View v) {
+
+                WriteSettings(MapsActivity.this,"djqlkdjqklsjdlq");
+            }
+        });
+        // if button is clicked, close the custom dialog
+        dialogButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                //Debut
+
+                Uri gmmIntentUri = Uri.parse("http://maps.google.com/maps?saddr=48.866667,2.333333&daddr="+ lat1 + "," + lon1 + "&mode=b");
+                Intent mapIntent = new Intent(Intent.ACTION_VIEW, gmmIntentUri);
+                mapIntent.setPackage("com.google.android.apps.maps");
+                try
+                {
+                    startActivity(mapIntent);
+                }
+                catch(ActivityNotFoundException ex)
+                {
+                    try
+                    {
+                        Intent unrestrictedIntent = new Intent(Intent.ACTION_VIEW, gmmIntentUri);
+                        startActivity(unrestrictedIntent);
+                    }
+                    catch(ActivityNotFoundException innerEx)
+                    {
+                        //Toast.makeText(this, "Please install a maps application", Toast.LENGTH_LONG).show();
+                    }
+                }
+
+
+                //Fin
+                Log.i("Sortie","okai");
+                //dialog.dismiss();
+            }
+        });
+
+        dialog.show();
+    }
 
 
     //################### Menu ############################"
@@ -532,11 +605,42 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 return true;
             case R.id.action_favori:
             /* DO Favori */
-                Intent my_favori = new Intent(MapsActivity.this, FavoriActivity.class);
-                startActivity(my_favori);
+               page = new Intent(MapsActivity.this, FavoriActivity.class);
+                startActivity(page);
 
+                return true;
+            case R.id.action_option:
+            /* DO Option */
+                page = new Intent(MapsActivity.this, OptionActivity.class);
+                startActivity(page);
                 return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    public void WriteSettings(Context context, String data){
+        FileOutputStream fOut = null;
+        OutputStreamWriter osw = null;
+
+        try{
+            fOut = openFileOutput("settings.dat",MODE_PRIVATE);
+            osw = new OutputStreamWriter(fOut);
+            osw.write(data);
+            osw.flush();
+            Toast.makeText(context, "Settings saved",Toast.LENGTH_SHORT).show();
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(context, "Settings not saved",Toast.LENGTH_SHORT).show();
+        }
+
+        finally {
+            try {
+                osw.close();
+                fOut.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }
