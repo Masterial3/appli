@@ -37,7 +37,7 @@ public class FavoriActivity extends Activity {
     }
 
 
-// Read settings
+// lecture du fichier des favoris
 
     public String ReadSettings(Context context){
 

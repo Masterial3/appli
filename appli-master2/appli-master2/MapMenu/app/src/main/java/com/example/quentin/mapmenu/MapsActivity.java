@@ -55,6 +55,7 @@ import java.util.regex.Pattern;
 public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
     TextView name;
     Intent page;
+    String na;
     private GoogleMap mMap;
     public TextView textView;
     ArrayList<ArrayList<String>> table;
@@ -525,6 +526,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         Log.i("Dialog","Texte a venir");
 
         dialog.setTitle(strname);
+        na = strname;
         adress.setText("Adresse : " + stradresse);
         nbvelo.setText(intnbvelo + " vélo");
         nbplace.setText(intnbplace + " places");
@@ -547,7 +549,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onClick(View v) {
 
-                WriteSettings(MapsActivity.this,"djqlkdjqklsjdlq");
+                WriteSettings(MapsActivity.this,na);
             }
         });
         // if button is clicked, close the custom dialog
@@ -617,7 +619,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
         return super.onOptionsItemSelected(item);
     }
-
+////écriture d'un favoris
     public void WriteSettings(Context context, String data){
         FileOutputStream fOut = null;
         OutputStreamWriter osw = null;
